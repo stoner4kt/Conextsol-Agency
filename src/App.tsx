@@ -13,20 +13,41 @@ import {
   ShieldAlert
 } from 'lucide-react';
 import { AppState, Client, Project, Retainer, DocumentAndNote, WebhookAlert } from './types';
-import { getInitialState, saveState, CURRENT_DATE_STR } from './mockData';
+import { 
+  getInitialState, 
+  saveState, 
+  CURRENT_DATE_STR,
+  DEMO_CLIENTS,
+  DEMO_PROJECTS,
+  DEMO_RETAINERS,
+  DEMO_DOCUMENTS,
+  DEMO_ALERTS_LOG,
+  INITIAL_CLIENTS,
+  INITIAL_PROJECTS,
+  INITIAL_RETAINERS,
+  INITIAL_DOCUMENTS,
+  INITIAL_ALERTS_LOG
+} from './mockData';
 import Sidebar from './components/Sidebar';
 import DashboardStats from './components/DashboardStats';
 import OnboardingWizard from './components/OnboardingWizard';
-import ClientsList from './components/ClientsList';
 import ClientDetail from './components/ClientDetail';
 import DocumentEditor from './components/DocumentEditor';
 import DevCenter from './components/DevCenter';
+import ClientsDashboard from './components/ClientsDashboard';
+import ProjectsDashboard from './components/ProjectsDashboard';
+import RetainersDashboard from './components/RetainersDashboard';
+import DocumentsDashboard from './components/DocumentsDashboard';
+import AlertsDashboard from './components/AlertsDashboard';
+import { supabaseService } from './supabaseService';
+import { isSupabaseConfigured } from './supabaseClient';
 
 export default function App() {
-  // Load state from localStorage or load seed data
+  // Load initial local state
   const [state, setState] = useState<AppState>(getInitialState);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   
-  // Tab Routing: 'dashboard' | 'wizard' | 'clients' | 'devcenter'
+  // Tab Routing: 'dashboard' | 'clients_dash' | 'projects_dash' | ...
   const [currentTab, setCurrentTab] = useState<string>('dashboard');
   
   // Drill-down Detail States
@@ -41,10 +62,41 @@ export default function App() {
   const [loginPassword, setLoginPassword] = useState('conextsol2026');
   const [authError, setAuthError] = useState('');
 
-  // Persist AppState to localStorage on change
+  // Sync state with Database/Local storage on mount
   useEffect(() => {
-    saveState(state);
-  }, [state]);
+    async function loadDbState() {
+      try {
+        const [clients, projects, retainers, documents, alertsLog] = await Promise.all([
+          supabaseService.getClients(),
+          supabaseService.getProjects(),
+          supabaseService.getRetainers(),
+          supabaseService.getDocuments(),
+          supabaseService.getAlertsLog()
+        ]);
+        
+        setState(prev => ({
+          ...prev,
+          clients,
+          projects,
+          retainers,
+          documents,
+          alertsLog
+        }));
+      } catch (err) {
+        console.error('Failed to load initial DB state:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    loadDbState();
+  }, []);
+
+  // Persist AppState to localStorage on change (after load finishes)
+  useEffect(() => {
+    if (!isLoading) {
+      saveState(state);
+    }
+  }, [state, isLoading]);
 
   // Handle Simulated Supabase Authentication
   const handleLogin = (e: React.FormEvent) => {
@@ -77,23 +129,131 @@ export default function App() {
     setSelectedDocumentId(null);
   };
 
+  // Save/Edit Client (persists to DB and react state)
+  const handleSaveClient = async (client: Client) => {
+    setState(prev => {
+      const exists = prev.clients.some(c => c.id === client.id);
+      let updated;
+      if (exists) {
+        updated = prev.clients.map(c => c.id === client.id ? client : c);
+      } else {
+        updated = [...prev.clients, client];
+      }
+      return { ...prev, clients: updated };
+    });
+    await supabaseService.saveClient(client);
+  };
+
+  // Delete Client (persists to DB and react state)
+  const handleDeleteClient = async (id: string) => {
+    setState(prev => ({
+      ...prev,
+      clients: prev.clients.filter(c => c.id !== id),
+      projects: prev.projects.filter(p => p.client_id !== id),
+      retainers: prev.retainers.filter(r => r.client_id !== id)
+    }));
+    await supabaseService.deleteClient(id);
+  };
+
+  // Save/Edit Project
+  const handleSaveProject = async (project: Project) => {
+    setState(prev => {
+      const exists = prev.projects.some(p => p.id === project.id);
+      let updated;
+      if (exists) {
+        updated = prev.projects.map(p => p.id === project.id ? project : p);
+      } else {
+        updated = [...prev.projects, project];
+      }
+      return { ...prev, projects: updated };
+    });
+    await supabaseService.saveProject(project);
+  };
+
+  // Delete Project
+  const handleDeleteProject = async (id: string) => {
+    setState(prev => ({
+      ...prev,
+      projects: prev.projects.filter(p => p.id !== id),
+      documents: prev.documents.filter(d => d.project_id !== id)
+    }));
+    await supabaseService.deleteProject(id);
+  };
+
+  // Save/Edit Retainer
+  const handleSaveRetainer = async (retainer: Retainer) => {
+    setState(prev => {
+      const exists = prev.retainers.some(r => r.id === retainer.id);
+      let updated;
+      if (exists) {
+        updated = prev.retainers.map(r => r.id === retainer.id ? retainer : r);
+      } else {
+        updated = [...prev.retainers, retainer];
+      }
+      return { ...prev, retainers: updated };
+    });
+    await supabaseService.saveRetainer(retainer);
+  };
+
+  // Delete Retainer
+  const handleDeleteRetainer = async (id: string) => {
+    setState(prev => ({
+      ...prev,
+      retainers: prev.retainers.filter(r => r.id !== id)
+    }));
+    await supabaseService.deleteRetainer(id);
+  };
+
+  // Save/Edit Document from Dashboard view (takes a single object)
+  const handleSaveDocumentSingle = async (doc: DocumentAndNote) => {
+    setState(prev => {
+      const exists = prev.documents.some(d => d.id === doc.id);
+      let updated;
+      if (exists) {
+        updated = prev.documents.map(d => d.id === doc.id ? doc : d);
+      } else {
+        updated = [...prev.documents, doc];
+      }
+      return { ...prev, documents: updated };
+    });
+    await supabaseService.saveDocument(doc);
+  };
+
+  // Delete Document
+  const handleDeleteDocument = async (id: string) => {
+    setState(prev => ({
+      ...prev,
+      documents: prev.documents.filter(d => d.id !== id)
+    }));
+    await supabaseService.deleteDocument(id);
+  };
+
+  // Clear Alerts Logs
+  const handleClearAlertsLog = async () => {
+    setState(prev => ({
+      ...prev,
+      alertsLog: []
+    }));
+    await supabaseService.clearAlertsLog();
+  };
+
   // Onboarding Wizard complete callback (chains Client + Project + Specs)
-  const handleOnboardingComplete = (newClient: Client, newProject: Project, newDoc: DocumentAndNote) => {
+  const handleOnboardingComplete = async (newClient: Client, newProject: Project, newDoc: DocumentAndNote) => {
+    const wizardAlertId = 'wizard-' + Date.now();
+    const newAlert: WebhookAlert = {
+      id: wizardAlertId,
+      timestamp: new Date().toISOString(),
+      type: 'deadline',
+      title: `Wizard Transaction for ${newClient.company_name}`,
+      message: `⚡ Relational Pipeline Fired: Ingested and linked Client Profile (${newClient.company_name}), associated Project (${newProject.project_name}), and initial Markdown Specs in a unified PostgreSQL cascading transaction.`,
+      recipient: 'Backoffice DB ledger',
+      status: 'sent'
+    };
+
     setState(prev => {
       const updatedClients = [...prev.clients, newClient];
       const updatedProjects = [...prev.projects, newProject];
       const updatedDocs = [...prev.documents, newDoc];
-      
-      // Auto-append simulated ledger of this operation
-      const newAlert: WebhookAlert = {
-        id: 'wizard-' + Date.now(),
-        timestamp: new Date().toISOString(),
-        type: 'deadline',
-        title: `Wizard Transaction for ${newClient.company_name}`,
-        message: `⚡ Relational Pipeline Fired: Ingested and linked Client Profile (${newClient.company_name}), associated Project (${newProject.project_name}), and initial Markdown Specs in a unified PostgreSQL cascading transaction.`,
-        recipient: 'Backoffice DB ledger',
-        status: 'sent'
-      };
 
       return {
         ...prev,
@@ -104,15 +264,21 @@ export default function App() {
       };
     });
 
+    // Save each to database service asynchronously
+    await supabaseService.saveClient(newClient);
+    await supabaseService.saveProject(newProject);
+    await supabaseService.saveDocument(newDoc);
+    await supabaseService.saveAlert(newAlert);
+
     // Take the user to the newly created client details page
     setTimeout(() => {
       setSelectedClientId(newClient.id);
-      setCurrentTab('clients');
+      setCurrentTab('clients_dash');
     }, 1500);
   };
 
   // Simulate Deno Edge Function: Scan Projects Due in exactly 2 Days
-  const handleRunDeadlineAlerts = () => {
+  const handleRunDeadlineAlerts = async () => {
     // Current anchored date is '2026-07-15'. 2 Days away is '2026-07-17'.
     const targetDate = '2026-07-17';
     
@@ -139,6 +305,10 @@ export default function App() {
         ...prev,
         alertsLog: [...newAlerts, ...prev.alertsLog]
       }));
+
+      for (const alert of newAlerts) {
+        await supabaseService.saveAlert(alert);
+      }
     } else {
       // Log negative search outcome
       const dryAlert: WebhookAlert = {
@@ -154,11 +324,12 @@ export default function App() {
         ...prev,
         alertsLog: [dryAlert, ...prev.alertsLog]
       }));
+      await supabaseService.saveAlert(dryAlert);
     }
   };
 
   // Simulate Deno Edge Function: Scan Active Retainers Due Today (Cycle Day === 15)
-  const handleRunRetainerAlerts = () => {
+  const handleRunRetainerAlerts = async () => {
     // Current anchored date is July 15, so billing day is 15
     const todayDayNum = 15;
 
@@ -184,6 +355,10 @@ export default function App() {
         ...prev,
         alertsLog: [...newAlerts, ...prev.alertsLog]
       }));
+
+      for (const alert of newAlerts) {
+        await supabaseService.saveAlert(alert);
+      }
     } else {
       const dryAlert: WebhookAlert = {
         id: `retainer-dry-${Date.now()}`,
@@ -198,11 +373,12 @@ export default function App() {
         ...prev,
         alertsLog: [dryAlert, ...prev.alertsLog]
       }));
+      await supabaseService.saveAlert(dryAlert);
     }
   };
 
   // Insert a new retainer contract for a specific client
-  const handleAddRetainer = (clientId: string, serviceType: string, amount: number, cycleDay: number) => {
+  const handleAddRetainer = async (clientId: string, serviceType: string, amount: number, cycleDay: number) => {
     const newRetainer: Retainer = {
       id: 'ret-' + Math.random().toString(36).substring(2, 9),
       client_id: clientId,
@@ -218,10 +394,11 @@ export default function App() {
       ...prev,
       retainers: [...prev.retainers, newRetainer]
     }));
+    await supabaseService.saveRetainer(newRetainer);
   };
 
   // Insert documentation tied to a project
-  const handleAddDoc = (projectId: string, title: string, content: string, files: string) => {
+  const handleAddDoc = async (projectId: string, title: string, content: string, files: string) => {
     const parsedFiles = files ? files.split(',').map(f => f.trim()).filter(Boolean) : [];
     
     const newDoc: DocumentAndNote = {
@@ -238,13 +415,14 @@ export default function App() {
       ...prev,
       documents: [...prev.documents, newDoc]
     }));
+    await supabaseService.saveDocument(newDoc);
 
     // Auto-open this newly created document
     setSelectedDocumentId(newDoc.id);
   };
 
   // Edit / Save document (Restricted to Admin inside the component)
-  const handleSaveDocument = (id: string, title: string, content: string, fileRefs: string[]) => {
+  const handleSaveDocument = async (id: string, title: string, content: string, fileRefs: string[]) => {
     setState(prev => {
       const updatedDocs = prev.documents.map(d => {
         if (d.id === id) {
@@ -264,6 +442,48 @@ export default function App() {
         documents: updatedDocs
       };
     });
+
+    const existing = state.documents.find(d => d.id === id);
+    if (existing) {
+      await supabaseService.saveDocument({
+        ...existing,
+        title,
+        content,
+        file_references: fileRefs,
+        updated_at: new Date().toISOString()
+      });
+    }
+  };
+
+  // DevCenter actions
+  const handleSeedDemoData = () => {
+    setState(prev => ({
+      ...prev,
+      clients: DEMO_CLIENTS,
+      projects: DEMO_PROJECTS,
+      retainers: DEMO_RETAINERS,
+      documents: DEMO_DOCUMENTS,
+      alertsLog: DEMO_ALERTS_LOG
+    }));
+    supabaseService.seedDemoData(
+      DEMO_CLIENTS,
+      DEMO_PROJECTS,
+      DEMO_RETAINERS,
+      DEMO_DOCUMENTS,
+      DEMO_ALERTS_LOG
+    );
+  };
+
+  const handleClearAllData = () => {
+    setState(prev => ({
+      ...prev,
+      clients: INITIAL_CLIENTS,
+      projects: INITIAL_PROJECTS,
+      retainers: INITIAL_RETAINERS,
+      documents: INITIAL_DOCUMENTS,
+      alertsLog: INITIAL_ALERTS_LOG
+    }));
+    supabaseService.clearAllLocalData();
   };
 
   // Render Login Frame if not authenticated
@@ -393,12 +613,28 @@ export default function App() {
   const getTabTitle = () => {
     switch (currentTab) {
       case 'dashboard': return 'Operational Control Dashboard';
+      case 'clients_dash': return 'Accounts & Contract Registries';
+      case 'projects_dash': return 'Assigned Development Projects';
+      case 'retainers_dash': return 'Active Retainer Engagements';
+      case 'documents_dash': return 'System Specifications Sheets';
+      case 'alerts_dash': return 'Dispatched Webhooks & Alerts';
       case 'wizard': return 'Linked Client Pipeline';
-      case 'clients': return 'Accounts & Contract registries';
       case 'devcenter': return 'Supabase & Next.js Download Hub';
       default: return 'Backoffice';
     }
   };
+
+  // Render Loader if DB is synchronizing
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#0A0514] flex flex-col items-center justify-center font-sans space-y-4">
+        <div className="h-10 w-10 border-4 border-emerald-500/25 border-t-emerald-500 rounded-full animate-spin" />
+        <p className="text-xs text-gray-400 font-mono font-bold uppercase tracking-widest animate-pulse">
+          Synchronizing Conextsol Database...
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#0A0514] flex overflow-hidden font-sans text-gray-300">
@@ -485,7 +721,7 @@ export default function App() {
                   onRunRetainerAlerts={handleRunRetainerAlerts}
                   onSelectClient={(id) => {
                     setSelectedClientId(id);
-                    setCurrentTab('clients');
+                    setCurrentTab('clients_dash');
                   }}
                   onOpenWizard={() => setCurrentTab('wizard')}
                 />
@@ -498,16 +734,68 @@ export default function App() {
                 />
               )}
 
-              {currentTab === 'clients' && (
-                <ClientsList 
+              {currentTab === 'clients_dash' && (
+                <ClientsDashboard 
                   state={state}
                   onSelectClient={setSelectedClientId}
+                  onSaveClient={handleSaveClient}
+                  onDeleteClient={handleDeleteClient}
                   onOpenWizard={() => setCurrentTab('wizard')}
+                  isAdmin={state.isAdmin}
+                />
+              )}
+
+              {currentTab === 'projects_dash' && (
+                <ProjectsDashboard 
+                  state={state}
+                  onSaveProject={handleSaveProject}
+                  onDeleteProject={handleDeleteProject}
+                  onSelectClient={(id) => {
+                    setSelectedClientId(id);
+                    setCurrentTab('clients_dash');
+                  }}
+                  isAdmin={state.isAdmin}
+                />
+              )}
+
+              {currentTab === 'retainers_dash' && (
+                <RetainersDashboard 
+                  state={state}
+                  onSaveRetainer={handleSaveRetainer}
+                  onDeleteRetainer={handleDeleteRetainer}
+                  onSelectClient={(id) => {
+                    setSelectedClientId(id);
+                    setCurrentTab('clients_dash');
+                  }}
+                  isAdmin={state.isAdmin}
+                />
+              )}
+
+              {currentTab === 'documents_dash' && (
+                <DocumentsDashboard 
+                  state={state}
+                  onSaveDocument={handleSaveDocumentSingle}
+                  onDeleteDocument={handleDeleteDocument}
+                  isAdmin={state.isAdmin}
+                />
+              )}
+
+              {currentTab === 'alerts_dash' && (
+                <AlertsDashboard 
+                  state={state}
+                  onClearAlertsLog={handleClearAlertsLog}
+                  onRunDeadlineAlerts={handleRunDeadlineAlerts}
+                  onRunRetainerAlerts={handleRunRetainerAlerts}
+                  isAdmin={state.isAdmin}
                 />
               )}
 
               {currentTab === 'devcenter' && (
-                <DevCenter />
+                <DevCenter 
+                  onSeedDemoData={handleSeedDemoData}
+                  onClearAllData={handleClearAllData}
+                  isSupabaseConnected={isSupabaseConfigured}
+                />
               )}
             </>
           )}
@@ -517,8 +805,12 @@ export default function App() {
         {/* Footer Credit & Status Line */}
         <footer className="bg-[#0F081C]/40 border-t border-purple-900/20 py-3.5 px-6 flex flex-col sm:flex-row items-center justify-between text-[11px] text-gray-400 gap-2 shrink-0">
           <div className="flex items-center space-x-2">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 inline-block animate-pulse" />
-            <span className="font-mono">Local Sandbox synchronized with localStorage database</span>
+            <span className={`h-1.5 w-1.5 rounded-full inline-block animate-pulse ${isSupabaseConfigured ? 'bg-emerald-400' : 'bg-purple-400'}`} />
+            <span className="font-mono">
+              {isSupabaseConfigured 
+                ? 'Production Cloud synchronized with live Supabase database' 
+                : 'Local Sandbox synchronized with localStorage database'}
+            </span>
           </div>
           <div>
             <span className="font-semibold text-gray-300">Conextsol Internal Backoffice</span> v1.4.0
