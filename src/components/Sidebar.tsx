@@ -10,7 +10,11 @@ import {
   UserCheck, 
   Menu, 
   X, 
-  AlertCircle 
+  AlertCircle,
+  Layers,
+  CreditCard,
+  BellRing,
+  PieChart
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -33,9 +37,13 @@ export default function Sidebar({
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const navItems = [
-    { id: 'dashboard', label: 'Dashboard & Alerts', icon: Briefcase },
-    { id: 'wizard', label: 'Client Onboarding Wizard', icon: UserCheck },
-    { id: 'clients', label: 'Clients & Retainers', icon: Building2 },
+    { id: 'dashboard', label: 'System Overview', icon: PieChart },
+    { id: 'clients_dash', label: 'Clients Dashboard', icon: Building2 },
+    { id: 'projects_dash', label: 'Projects Dashboard', icon: Layers },
+    { id: 'retainers_dash', label: 'Retainers Dashboard', icon: CreditCard },
+    { id: 'documents_dash', label: 'Specifications Docs', icon: FileText },
+    { id: 'alerts_dash', label: 'Dispatched Webhooks', icon: BellRing },
+    { id: 'wizard', label: 'Onboarding Pipeline', icon: UserCheck },
     { id: 'devcenter', label: 'Supabase & Code Hub', icon: Terminal },
   ];
 

@@ -1,9 +1,17 @@
 import { Client, Project, Retainer, DocumentAndNote, WebhookAlert, AppState } from './types';
 
-// Let's assume current system date is July 15, 2026 as per metadata
+// System date anchored at July 15, 2026
 export const CURRENT_DATE_STR = '2026-07-15';
 
-export const INITIAL_CLIENTS: Client[] = [
+// Default initial state is completely empty
+export const INITIAL_CLIENTS: Client[] = [];
+export const INITIAL_PROJECTS: Project[] = [];
+export const INITIAL_RETAINERS: Retainer[] = [];
+export const INITIAL_DOCUMENTS: DocumentAndNote[] = [];
+export const INITIAL_ALERTS_LOG: WebhookAlert[] = [];
+
+// Demo / Backoffice sample seed dataset
+export const DEMO_CLIENTS: Client[] = [
   {
     id: 'c1111111-1111-1111-1111-111111111111',
     company_name: 'Acme Corp Solutions',
@@ -46,13 +54,13 @@ export const INITIAL_CLIENTS: Client[] = [
   }
 ];
 
-export const INITIAL_PROJECTS: Project[] = [
+export const DEMO_PROJECTS: Project[] = [
   {
     id: 'p1111111-1111-1111-1111-111111111111',
     client_id: 'c1111111-1111-1111-1111-111111111111',
     project_name: 'Acme E-Commerce Platform Redesign',
     start_date: '2026-06-01',
-    end_date: '2026-07-17', // Exactly 2 days from July 15, 2026! Fires the deadline alert.
+    end_date: '2026-07-17', // Close to system date YYYY-MM-DD
     invoiced_amount: 18500,
     short_note: 'Complete overhaul of core B2B purchasing funnel and Tailwind design upgrade. Needs final client review of staging build.',
     staging_url: 'https://acme-staging.conextsol.dev',
@@ -97,13 +105,13 @@ export const INITIAL_PROJECTS: Project[] = [
   }
 ];
 
-export const INITIAL_RETAINERS: Retainer[] = [
+export const DEMO_RETAINERS: Retainer[] = [
   {
     id: 'r1111111-1111-1111-1111-111111111111',
     client_id: 'c1111111-1111-1111-1111-111111111111',
     service_type: 'web maintenance',
     billing_amount: 1200,
-    billing_cycle_day: 15, // Matches current day 15! Fires the retainer invoicing alert.
+    billing_cycle_day: 15,
     is_active: true,
     created_at: '2026-01-15T00:00:00Z',
     updated_at: '2026-01-15T00:00:00Z',
@@ -123,7 +131,7 @@ export const INITIAL_RETAINERS: Retainer[] = [
     client_id: 'c2222222-2222-2222-2222-222222222222',
     service_type: 'SEO',
     billing_amount: 1800,
-    billing_cycle_day: 15, // Also matches current day 15!
+    billing_cycle_day: 15,
     is_active: true,
     created_at: '2026-04-15T00:00:00Z',
     updated_at: '2026-04-15T00:00:00Z',
@@ -134,13 +142,13 @@ export const INITIAL_RETAINERS: Retainer[] = [
     service_type: 'web hosting',
     billing_amount: 250,
     billing_cycle_day: 20,
-    is_active: false, // Inactive retainer
+    is_active: false,
     created_at: '2026-05-15T00:00:00Z',
     updated_at: '2026-06-15T10:00:00Z',
   }
 ];
 
-export const INITIAL_DOCUMENTS: DocumentAndNote[] = [
+export const DEMO_DOCUMENTS: DocumentAndNote[] = [
   {
     id: 'd1111111-1111-1111-1111-111111111111',
     project_id: 'p1111111-1111-1111-1111-111111111111',
@@ -174,7 +182,7 @@ STRIPE_WEBHOOK_SECRET=whsec_...
     id: 'd2222222-2222-2222-2222-222222222222',
     project_id: 'p2222222-2222-2222-2222-222222222222',
     title: 'Zenith Retail Warehouse Barcode API Integration Speccing',
-    content: `### Zenith Mobile Stock Scan Spec
+    content: `### Zenith Mobile Stock Spec
 
 Details regarding the React Native camera scanning library and custom inventory sync API endpoints.
 
@@ -194,7 +202,7 @@ We are utilizing \`react-native-vision-camera\` paired with the \`@vdoc/barcode-
     "warehouse_id": "wh_east_04",
     "quantity_offset": 1
   }
-  \`\`\`
+  \`\`s
 
 #### Next Steps:
 - Complete the camera layout view on iOS 17 devices.
@@ -205,13 +213,13 @@ We are utilizing \`react-native-vision-camera\` paired with the \`@vdoc/barcode-
   }
 ];
 
-export const INITIAL_ALERTS_LOG: WebhookAlert[] = [
+export const DEMO_ALERTS_LOG: WebhookAlert[] = [
   {
     id: 'a1',
     timestamp: '2026-07-14T08:00:00Z',
     type: 'deadline',
     title: 'Acme E-Commerce Platform Redesign Deadline Warning',
-    message: '⚠️ Telegram Alert Sent: Project "Acme E-Commerce Platform Redesign" for client "Acme Corp Solutions" is finishing on 2026-07-17 (In 3 Days). Please verify the QA tests are complete.',
+    message: '⚠️ Telegram Alert Sent: Project "Acme E-Commerce Platform Redesign" for client "Acme Corp Solutions" is finishing on 2026-07-17 (In 2 Days). Please verify the QA tests are complete.',
     recipient: 'Telegram Admin Channel (@conextsol_ops)',
     status: 'sent',
   },
@@ -244,14 +252,15 @@ export function getInitialState(): AppState {
     }
   }
 
+  // Start with completely clean arrays by default, as user specified they connected up Supabase!
   return {
     clients: INITIAL_CLIENTS,
     projects: INITIAL_PROJECTS,
     retainers: INITIAL_RETAINERS,
     documents: INITIAL_DOCUMENTS,
     alertsLog: INITIAL_ALERTS_LOG,
-    isAdmin: true, // Default as Admin for demonstration
-    userEmail: 'reeqieric41@gmail.com', // Pre-populated from user metadata
+    isAdmin: true, 
+    userEmail: 'reeqieric41@gmail.com',
   };
 }
 

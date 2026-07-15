@@ -8,17 +8,44 @@ import {
   Database, 
   Cpu, 
   BookOpen, 
-  CheckCircle2 
+  CheckCircle2,
+  Trash2,
+  Sparkles,
+  RefreshCw
 } from 'lucide-react';
 
-export default function DevCenter() {
+interface DevCenterProps {
+  onSeedDemoData: () => void;
+  onClearAllData: () => void;
+  isSupabaseConnected: boolean;
+}
+
+export default function DevCenter({ onSeedDemoData, onClearAllData, isSupabaseConnected }: DevCenterProps) {
   const [activeSubTab, setActiveSubTab] = useState<'sql' | 'nextjs' | 'edge' | 'guide'>('sql');
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [isSeeding, setIsSeeding] = useState(false);
+  const [isWiping, setIsWiping] = useState(false);
 
   const triggerCopy = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const handleSeed = () => {
+    setIsSeeding(true);
+    setTimeout(() => {
+      onSeedDemoData();
+      setIsSeeding(false);
+    }, 600);
+  };
+
+  const handleWipe = () => {
+    setIsWiping(true);
+    setTimeout(() => {
+      onClearAllData();
+      setIsWiping(false);
+    }, 600);
   };
 
   // 1. PostgreSQL DDL string for copy-pasting
@@ -366,27 +393,113 @@ serve(async (req) => {
         </pre>
       </div>
 
+      {/* Live Database Integration Status and Seeding Panel */}
+      <div className="bg-[#1B122B] rounded-xl border border-purple-900/20 p-6 shadow-lg space-y-4 text-left">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-purple-900/15 pb-4">
+          <div className="space-y-1">
+            <h4 className="font-display font-bold text-white text-sm flex items-center space-x-2">
+              <Database size={16} className="text-emerald-400" />
+              <span>Real-Time Database Connectivity Status</span>
+            </h4>
+            <p className="text-xs text-gray-400 leading-normal max-w-xl">
+              This agency portal dynamically detects connection settings. If Vite credentials are present, transactions route straight to your live cloud PostgreSQL instance.
+            </p>
+          </div>
+
+          <div className="flex items-center space-x-2 shrink-0">
+            <span className={`h-2.5 w-2.5 rounded-full inline-block ${isSupabaseConnected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+            <span className={`font-mono text-xs font-black uppercase ${isSupabaseConnected ? 'text-emerald-400' : 'text-amber-400'}`}>
+              {isSupabaseConnected ? 'Supabase Connected' : 'Local Storage Sandbox'}
+            </span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+          {/* Seed Demo Action */}
+          <div className="border border-purple-900/10 bg-[#0F081C]/40 p-4 rounded-xl flex flex-col justify-between gap-4">
+            <div className="space-y-1">
+              <h5 className="text-xs font-bold text-white flex items-center space-x-1">
+                <Sparkles size={13} className="text-emerald-400" />
+                <span>Load Sample Backoffice Sandbox Data</span>
+              </h5>
+              <p className="text-[11px] text-gray-400 leading-relaxed">
+                Since we removed default seed datasets from the main database, you can load our complete pre-configured demonstration suite (4 Clients, 3 Projects, 4 Active Retainers, and Docs) instantly to inspect the styling and responsiveness.
+              </p>
+            </div>
+            <button
+              id="seed-sandbox-btn"
+              onClick={handleSeed}
+              disabled={isSeeding}
+              className="w-full py-2.5 bg-emerald-500 hover:bg-emerald-600 text-[#0F081C] font-semibold text-xs rounded-lg shadow-md transition-all cursor-pointer flex items-center justify-center space-x-1.5"
+            >
+              {isSeeding ? (
+                <>
+                  <RefreshCw size={13} className="animate-spin" />
+                  <span>Seeding Records...</span>
+                </>
+              ) : (
+                <>
+                  <Database size={13} />
+                  <span>Seed Demonstration Dataset</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Wipe Sandbox Action */}
+          <div className="border border-purple-900/10 bg-[#0F081C]/40 p-4 rounded-xl flex flex-col justify-between gap-4">
+            <div className="space-y-1">
+              <h5 className="text-xs font-bold text-white flex items-center space-x-1">
+                <Trash2 size={13} className="text-red-400" />
+                <span>Purge Local sandbox Databases</span>
+              </h5>
+              <p className="text-[11px] text-gray-400 leading-relaxed">
+                Wipes and purges any records in your current local sandbox cache. Allows starting completely empty from scratch. This operation is safe and will not delete records in your live remote cloud database.
+              </p>
+            </div>
+            <button
+              id="wipe-sandbox-btn"
+              onClick={handleWipe}
+              disabled={isWiping}
+              className="w-full py-2.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 font-semibold text-xs rounded-lg transition-all cursor-pointer flex items-center justify-center space-x-1.5"
+            >
+              {isWiping ? (
+                <>
+                  <RefreshCw size={13} className="animate-spin" />
+                  <span>Wiping Cache...</span>
+                </>
+              ) : (
+                <>
+                  <Trash2 size={13} />
+                  <span>Purge Local Sandbox Cache</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Helper checklist */}
-      <div className="bg-white rounded-xl border border-slate-100 p-5 shadow-sm space-y-3.5">
-        <h4 className="font-display font-bold text-slate-800 text-sm flex items-center space-x-1.5">
-          <CheckCircle2 size={16} className="text-emerald-500" />
+      <div className="bg-[#1B122B] rounded-xl border border-purple-900/20 p-5 shadow-lg space-y-3.5 text-left">
+        <h4 className="font-display font-bold text-white text-sm flex items-center space-x-1.5">
+          <CheckCircle2 size={16} className="text-emerald-400" />
           <span>Supabase Production Launch Checklist</span>
         </h4>
-        <ul className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-slate-600 font-sans">
+        <ul className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-gray-300 font-sans">
           <li className="flex items-start space-x-2">
-            <span className="h-4 w-4 rounded-full bg-emerald-50 text-emerald-600 font-mono font-bold text-[9px] flex items-center justify-center shrink-0 mt-0.5">✓</span>
+            <span className="h-4 w-4 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 font-mono font-bold text-[9px] flex items-center justify-center shrink-0 mt-0.5">✓</span>
             <span>Enable RLS on all 4 tables to protect tenant data from anonymous manipulation.</span>
           </li>
           <li className="flex items-start space-x-2">
-            <span className="h-4 w-4 rounded-full bg-emerald-50 text-emerald-600 font-mono font-bold text-[9px] flex items-center justify-center shrink-0 mt-0.5">✓</span>
+            <span className="h-4 w-4 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 font-mono font-bold text-[9px] flex items-center justify-center shrink-0 mt-0.5">✓</span>
             <span>Configure bot webhooks inside Deno secrets manager via CLI.</span>
           </li>
           <li className="flex items-start space-x-2">
-            <span className="h-4 w-4 rounded-full bg-emerald-50 text-emerald-600 font-mono font-bold text-[9px] flex items-center justify-center shrink-0 mt-0.5">✓</span>
+            <span className="h-4 w-4 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 font-mono font-bold text-[9px] flex items-center justify-center shrink-0 mt-0.5">✓</span>
             <span>Establish cron schedule jobs via standard Postgres pg_cron.</span>
           </li>
           <li className="flex items-start space-x-2">
-            <span className="h-4 w-4 rounded-full bg-emerald-50 text-emerald-600 font-mono font-bold text-[9px] flex items-center justify-center shrink-0 mt-0.5">✓</span>
+            <span className="h-4 w-4 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 font-mono font-bold text-[9px] flex items-center justify-center shrink-0 mt-0.5">✓</span>
             <span>Deploy Next.js 14 server with built-in SSR features in Vercel.</span>
           </li>
         </ul>
