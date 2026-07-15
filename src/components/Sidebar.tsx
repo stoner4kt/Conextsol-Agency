@@ -24,6 +24,8 @@ interface SidebarProps {
   setIsAdmin: (admin: boolean) => void;
   userEmail: string | null;
   setUserEmail: (email: string | null) => void;
+  mobileOpen: boolean;
+  setMobileOpen: (open: boolean) => void;
 }
 
 export default function Sidebar({
@@ -33,8 +35,9 @@ export default function Sidebar({
   setIsAdmin,
   userEmail,
   setUserEmail,
+  mobileOpen,
+  setMobileOpen,
 }: SidebarProps) {
-  const [mobileOpen, setMobileOpen] = useState(false);
 
   const navItems = [
     { id: 'dashboard', label: 'System Overview', icon: PieChart },
@@ -44,7 +47,6 @@ export default function Sidebar({
     { id: 'documents_dash', label: 'Specifications Docs', icon: FileText },
     { id: 'alerts_dash', label: 'Dispatched Webhooks', icon: BellRing },
     { id: 'wizard', label: 'Onboarding Pipeline', icon: UserCheck },
-    { id: 'devcenter', label: 'Supabase & Code Hub', icon: Terminal },
   ];
 
   const toggleAdmin = () => {
@@ -59,36 +61,14 @@ export default function Sidebar({
 
   return (
     <>
-      {/* Mobile Top Header */}
-      <header className="lg:hidden flex items-center justify-between bg-[#0F081C] text-white px-4 py-3 sticky top-0 z-40 border-b border-purple-900/30">
-        <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center text-black font-black text-sm">
-            CX
-          </div>
-          <span className="font-display font-bold tracking-tight text-lg text-white">Conextsol</span>
-          <span className="text-[10px] bg-purple-900/40 text-emerald-400 font-mono px-1.5 py-0.5 rounded uppercase font-bold">
-            Portal
-          </span>
-        </div>
-        <button 
-          id="mobile-menu-toggle"
-          onClick={() => setMobileOpen(!mobileOpen)}
-          className="p-1.5 hover:bg-white/5 rounded-lg text-emerald-400 transition-colors"
-          aria-label="Toggle Navigation Menu"
-        >
-          {mobileOpen ? <X size={22} /> : <Menu size={22} />}
-        </button>
-      </header>
-
       {/* Sidebar Container */}
       <aside className={`
-        fixed inset-y-0 left-0 z-30 w-64 bg-[#140C24] text-gray-100 flex flex-col justify-between
+        fixed inset-y-0 left-0 z-50 w-64 bg-[#140C24] text-gray-100 flex flex-col justify-between
         transform lg:transform-none lg:opacity-100 transition-all duration-300 border-r border-purple-900/30
         ${mobileOpen ? 'translate-x-0 opacity-100' : '-translate-x-full lg:translate-x-0'}
-        ${mobileOpen ? 'pt-16 lg:pt-0' : 'pt-0'}
       `}>
         {/* Brand Header */}
-        <div className="p-8 border-b border-purple-900/30 hidden lg:block">
+        <div className="p-6 border-b border-purple-900/30 flex items-center justify-between lg:block">
           <div className="flex items-center space-x-3">
             <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center text-black font-black shrink-0 shadow-lg shadow-emerald-500/10">
               CX
@@ -100,6 +80,14 @@ export default function Sidebar({
               </p>
             </div>
           </div>
+          {/* Close button on mobile inside the drawer */}
+          <button 
+            onClick={() => setMobileOpen(false)}
+            className="lg:hidden p-1.5 hover:bg-white/5 rounded-lg text-gray-400 hover:text-white transition-colors"
+            aria-label="Close Navigation Menu"
+          >
+            <X size={18} />
+          </button>
         </div>
 
         {/* Navigation Items */}
@@ -190,7 +178,7 @@ export default function Sidebar({
       {mobileOpen && (
         <div 
           onClick={() => setMobileOpen(false)}
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-20 lg:hidden"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
         />
       )}
     </>

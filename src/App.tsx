@@ -10,7 +10,8 @@ import {
   Sparkles,
   LogOut,
   Mail,
-  ShieldAlert
+  ShieldAlert,
+  Menu
 } from 'lucide-react';
 import { AppState, Client, Project, Retainer, DocumentAndNote, WebhookAlert } from './types';
 import { 
@@ -33,14 +34,13 @@ import DashboardStats from './components/DashboardStats';
 import OnboardingWizard from './components/OnboardingWizard';
 import ClientDetail from './components/ClientDetail';
 import DocumentEditor from './components/DocumentEditor';
-import DevCenter from './components/DevCenter';
 import ClientsDashboard from './components/ClientsDashboard';
 import ProjectsDashboard from './components/ProjectsDashboard';
 import RetainersDashboard from './components/RetainersDashboard';
 import DocumentsDashboard from './components/DocumentsDashboard';
 import AlertsDashboard from './components/AlertsDashboard';
 import { supabaseService } from './supabaseService';
-import { isSupabaseConfigured } from './supabaseClient';
+import { supabase, isSupabaseConfigured } from './supabaseClient';
 
 export default function App() {
   // Load initial local state
@@ -54,18 +54,46 @@ export default function App() {
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
 
-  // Authentication State Simulation
+  // Mobile responsive sidebar drawer state
+  const [mobileOpen, setMobileOpen] = useState<boolean>(false);
+
+  // Authentication State Simulation / Real
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
     return localStorage.getItem('conextsol_auth_logged_in') === 'true';
   });
-  const [loginEmail, setLoginEmail] = useState('reeqieric41@gmail.com');
-  const [loginPassword, setLoginPassword] = useState('conextsol2026');
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
   const [authError, setAuthError] = useState('');
 
   // Sync state with Database/Local storage on mount
   useEffect(() => {
     async function loadDbState() {
       try {
+        let currentEmail = '';
+        
+        // If Supabase is configured, check for active session
+        if (isSupabaseConfigured && supabase) {
+          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+          if (sessionError) {
+            console.error('Error fetching Supabase session:', sessionError);
+          }
+          if (session) {
+            currentEmail = session.user.email || '';
+            localStorage.setItem('conextsol_auth_logged_in', 'true');
+            setIsLoggedIn(true);
+            const adminMode = currentEmail.endsWith('@conextsol.com') || currentEmail === 'reeqieric41@gmail.com';
+            setState(prev => ({
+              ...prev,
+              isAdmin: adminMode,
+              userEmail: currentEmail
+            }));
+          } else {
+            // No active session in Supabase - clear login if we had one
+            localStorage.removeItem('conextsol_auth_logged_in');
+            setIsLoggedIn(false);
+          }
+        }
+
         const [clients, projects, retainers, documents, alertsLog] = await Promise.all([
           supabaseService.getClients(),
           supabaseService.getProjects(),
@@ -98,29 +126,68 @@ export default function App() {
     }
   }, [state, isLoading]);
 
-  // Handle Simulated Supabase Authentication
-  const handleLogin = (e: React.FormEvent) => {
+  // Handle Simulated/Real Supabase Authentication
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!loginEmail || !loginPassword) {
       setAuthError('Please fill in both email and password fields.');
       return;
     }
     
-    // Simulate Supabase login
-    localStorage.setItem('conextsol_auth_logged_in', 'true');
-    setIsLoggedIn(true);
-    setAuthError('');
+    if (isSupabaseConfigured && supabase) {
+      try {
+        setIsLoading(true);
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: loginEmail,
+          password: loginPassword,
+        });
 
-    // Dynamically adjust permissions based on email structure
-    const adminMode = loginEmail.endsWith('@conextsol.com') || loginEmail === 'reeqieric41@gmail.com';
-    setState(prev => ({
-      ...prev,
-      isAdmin: adminMode,
-      userEmail: loginEmail
-    }));
+        if (error) {
+          setAuthError(error.message);
+          setIsLoading(false);
+          return;
+        }
+
+        localStorage.setItem('conextsol_auth_logged_in', 'true');
+        setIsLoggedIn(true);
+        setAuthError('');
+
+        const userEmail = data.user?.email || loginEmail;
+        const adminMode = userEmail.endsWith('@conextsol.com') || userEmail === 'reeqieric41@gmail.com';
+        setState(prev => ({
+          ...prev,
+          isAdmin: adminMode,
+          userEmail: userEmail
+        }));
+      } catch (err: any) {
+        setAuthError(err.message || 'An error occurred during authentication.');
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      // Local sandbox simulated fallback login
+      localStorage.setItem('conextsol_auth_logged_in', 'true');
+      setIsLoggedIn(true);
+      setAuthError('');
+
+      // Dynamically adjust permissions based on email structure
+      const adminMode = loginEmail.endsWith('@conextsol.com') || loginEmail === 'reeqieric41@gmail.com';
+      setState(prev => ({
+        ...prev,
+        isAdmin: adminMode,
+        userEmail: loginEmail
+      }));
+    }
   };
 
-  const handleSignOut = () => {
+  const handleSignOut = async () => {
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.auth.signOut();
+      } catch (err) {
+        console.error('Error signing out from Supabase:', err);
+      }
+    }
     localStorage.removeItem('conextsol_auth_logged_in');
     setIsLoggedIn(false);
     // Return tab to default
@@ -565,44 +632,6 @@ export default function App() {
                 Sign In & Synchronize Portal
               </button>
             </form>
-
-            <div className="border-t border-purple-900/20 pt-4 space-y-3">
-              <p className="text-[10px] text-gray-400 font-mono uppercase tracking-wider font-semibold">
-                Quick Simulation Logins
-              </p>
-              
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setLoginEmail('reeqieric41@gmail.com');
-                    setLoginPassword('conextsol2026');
-                  }}
-                  className="p-3 bg-[#0F081C] border border-purple-900/20 rounded-xl text-left text-[10px] hover:bg-white/5 transition-colors cursor-pointer text-gray-300 space-y-1"
-                >
-                  <p className="font-semibold text-emerald-400 flex items-center space-x-1">
-                    <ShieldCheck size={11} />
-                    <span>Agency Admin</span>
-                  </p>
-                  <p className="text-gray-400 font-mono truncate">reeqieric41@gmail.com</p>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setLoginEmail('client@zenithretail.co');
-                    setLoginPassword('zenithretail2026');
-                  }}
-                  className="p-3 bg-[#0F081C] border border-purple-900/20 rounded-xl text-left text-[10px] hover:bg-white/5 transition-colors cursor-pointer text-gray-300 space-y-1"
-                >
-                  <p className="font-semibold text-amber-400 flex items-center space-x-1">
-                    <ShieldAlert size={11} />
-                    <span>Client Guest</span>
-                  </p>
-                  <p className="text-gray-400 font-mono truncate">client@zenithretail.co</p>
-                </button>
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -619,7 +648,6 @@ export default function App() {
       case 'documents_dash': return 'System Specifications Sheets';
       case 'alerts_dash': return 'Dispatched Webhooks & Alerts';
       case 'wizard': return 'Linked Client Pipeline';
-      case 'devcenter': return 'Supabase & Next.js Download Hub';
       default: return 'Backoffice';
     }
   };
@@ -651,6 +679,8 @@ export default function App() {
         setIsAdmin={(admin) => setState(prev => ({ ...prev, isAdmin: admin }))}
         userEmail={state.userEmail}
         setUserEmail={(email) => setState(prev => ({ ...prev, userEmail: email }))}
+        mobileOpen={mobileOpen}
+        setMobileOpen={setMobileOpen}
       />
 
       {/* Main content viewport */}
@@ -658,24 +688,42 @@ export default function App() {
         
         {/* Dynamic Nav Header Bar */}
         <header className="bg-[#0F081C] border-b border-purple-900/30 px-6 py-4 flex items-center justify-between sticky top-0 z-20">
-          <div>
-            <h1 className="font-display font-extrabold tracking-tight text-white text-base md:text-lg">
-              {selectedDocumentId 
-                ? 'System Specifications Sheets' 
-                : selectedClientId 
-                  ? 'Client Profile Registry' 
-                  : getTabTitle()
-              }
-            </h1>
-            <p className="text-[10px] text-gray-400 font-mono font-semibold tracking-wider uppercase mt-0.5">
-              Conextsol Backoffice • Active Context
-            </p>
+          <div className="flex items-center space-x-3">
+            {/* Hamburger button on mobile */}
+            <button
+              id="mobile-menu-toggle"
+              onClick={() => setMobileOpen(true)}
+              className="lg:hidden p-1.5 hover:bg-white/5 rounded-lg text-emerald-400 transition-colors mr-1 cursor-pointer"
+              aria-label="Open Navigation Menu"
+            >
+              <Menu size={22} />
+            </button>
+
+            <div>
+              <h1 className="font-display font-extrabold tracking-tight text-white text-base md:text-lg flex items-center gap-2">
+                {/* Micro branding on mobile header */}
+                <span className="lg:hidden text-xs bg-purple-900/40 border border-purple-800/30 text-emerald-400 font-mono px-1.5 py-0.5 rounded uppercase font-bold tracking-widest shrink-0">
+                  Conextsol
+                </span>
+                <span className="truncate">
+                  {selectedDocumentId 
+                    ? 'System Specifications Sheets' 
+                    : selectedClientId 
+                      ? 'Client Profile Registry' 
+                      : getTabTitle()
+                  }
+                </span>
+              </h1>
+              <p className="text-[10px] text-gray-400 font-mono font-semibold tracking-wider uppercase mt-0.5">
+                Conextsol Backoffice • Active Context
+              </p>
+            </div>
           </div>
 
           <button
             id="signout-btn"
             onClick={handleSignOut}
-            className="flex items-center space-x-1 text-gray-400 hover:text-red-400 font-sans text-xs transition-colors font-semibold cursor-pointer"
+            className="flex items-center space-x-1 text-gray-400 hover:text-red-400 font-sans text-xs transition-colors font-semibold cursor-pointer shrink-0 bg-white/5 lg:bg-transparent px-3 py-1.5 lg:p-0 rounded-lg lg:rounded-none border border-purple-900/20 lg:border-none"
           >
             <LogOut size={14} />
             <span className="hidden sm:inline">Sign Out</span>
@@ -787,14 +835,6 @@ export default function App() {
                   onRunDeadlineAlerts={handleRunDeadlineAlerts}
                   onRunRetainerAlerts={handleRunRetainerAlerts}
                   isAdmin={state.isAdmin}
-                />
-              )}
-
-              {currentTab === 'devcenter' && (
-                <DevCenter 
-                  onSeedDemoData={handleSeedDemoData}
-                  onClearAllData={handleClearAllData}
-                  isSupabaseConnected={isSupabaseConfigured}
                 />
               )}
             </>
