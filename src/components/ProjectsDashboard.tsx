@@ -298,8 +298,7 @@ export default function ProjectsDashboard({
       .filter(c => c.status === 'active')  // Prefer active clients
       .map(c => (
         <option key={c.id} value={c.id}>
-          {c.primary_contact_name} — {c.company_name}
-        </option>
+          {c.primary_contact_name}</option>
       ))}
   </select>
 </div>
