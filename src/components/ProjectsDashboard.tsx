@@ -238,7 +238,7 @@ export default function ProjectsDashboard({
           >
             <option value="all">All Clients</option>
             {state.clients.map(c => (
-              <option key={c.id} value={c.id}>{c.company_name}</option>
+              <option key={c.id} value={c.id}>{c.primary_contact_name} — {c.company_name}</option>
             ))}
           </select>
 
@@ -283,22 +283,26 @@ export default function ProjectsDashboard({
           )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-[10px] font-semibold text-gray-400 mb-1">
-                Select Client Profile * <span className="text-purple-500 font-mono">({state.clients.length} registered)</span>
-              </label>
-              <select
-                required
-                value={newForm.client_id}
-                onChange={e => setNewForm({ ...newForm, client_id: e.target.value })}
-                className="w-full px-3 py-2 bg-[#0F081C] border border-purple-900/40 rounded-lg text-xs text-white focus:outline-none focus:border-emerald-500 cursor-pointer appearance-auto"
-              >
-                <option value="" disabled>-- Choose Client --</option>
-                {state.clients.map(c => (
-                  <option key={c.id} value={c.id}>{c.company_name}</option>
-                ))}
-              </select>
-            </div>
+        <div>
+  <label className="block text-[10px] font-semibold text-gray-400 mb-1">
+    Select Client * <span className="text-purple-500 font-mono">({state.clients.length} registered)</span>
+  </label>
+  <select
+    required
+    value={newForm.client_id}
+    onChange={e => setNewForm({ ...newForm, client_id: e.target.value })}
+    className="w-full px-3 py-2 bg-[#0F081C] border border-purple-900/40 rounded-lg text-xs text-white focus:outline-none focus:border-emerald-500 cursor-pointer appearance-auto"
+  >
+    <option value="" disabled>-- Choose Client --</option>
+    {state.clients
+      .filter(c => c.status === 'active')  // Prefer active clients
+      .map(c => (
+        <option key={c.id} value={c.id}>
+          {c.primary_contact_name} — {c.company_name}
+        </option>
+      ))}
+  </select>
+</div>
 
             <div>
               <label className="block text-[10px] font-semibold text-gray-400 mb-1">Project Name *</label>
