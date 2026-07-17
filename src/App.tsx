@@ -16,18 +16,7 @@ import {
 import { AppState, Client, Project, Retainer, DocumentAndNote, WebhookAlert } from './types';
 import { 
   getInitialState, 
-  saveState, 
-  CURRENT_DATE_STR,
-  DEMO_CLIENTS,
-  DEMO_PROJECTS,
-  DEMO_RETAINERS,
-  DEMO_DOCUMENTS,
-  DEMO_ALERTS_LOG,
-  INITIAL_CLIENTS,
-  INITIAL_PROJECTS,
-  INITIAL_RETAINERS,
-  INITIAL_DOCUMENTS,
-  INITIAL_ALERTS_LOG
+  CURRENT_DATE_STR
 } from './mockData';
 import Sidebar from './components/Sidebar';
 import DashboardStats from './components/DashboardStats';
@@ -65,11 +54,13 @@ export default function App() {
   const [loginPassword, setLoginPassword] = useState('');
   const [authError, setAuthError] = useState('');
 
-  // Sync state with Database/Local storage on mount
+  // Sync state with Database on mount and auth status changes
   useEffect(() => {
     async function loadDbState() {
       try {
+        setIsLoading(true);
         let currentEmail = '';
+        let hasActiveSession = false;
         
         // If Supabase is configured, check for active session
         if (isSupabaseConfigured && supabase) {
@@ -87,6 +78,7 @@ export default function App() {
               isAdmin: adminMode,
               userEmail: currentEmail
             }));
+            hasActiveSession = true;
           } else {
             // No active session in Supabase - clear login if we had one
             localStorage.removeItem('conextsol_auth_logged_in');
@@ -94,22 +86,35 @@ export default function App() {
           }
         }
 
-        const [clients, projects, retainers, documents, alertsLog] = await Promise.all([
-          supabaseService.getClients(),
-          supabaseService.getProjects(),
-          supabaseService.getRetainers(),
-          supabaseService.getDocuments(),
-          supabaseService.getAlertsLog()
-        ]);
-        
-        setState(prev => ({
-          ...prev,
-          clients,
-          projects,
-          retainers,
-          documents,
-          alertsLog
-        }));
+        // Only fetch data if we have an active session or are logged in
+        if (hasActiveSession || isLoggedIn) {
+          const [clients, projects, retainers, documents, alertsLog] = await Promise.all([
+            supabaseService.getClients(),
+            supabaseService.getProjects(),
+            supabaseService.getRetainers(),
+            supabaseService.getDocuments(),
+            supabaseService.getAlertsLog()
+          ]);
+          
+          setState(prev => ({
+            ...prev,
+            clients,
+            projects,
+            retainers,
+            documents,
+            alertsLog
+          }));
+        } else {
+          // Clear cached state if signed out
+          setState(prev => ({
+            ...prev,
+            clients: [],
+            projects: [],
+            retainers: [],
+            documents: [],
+            alertsLog: []
+          }));
+        }
       } catch (err) {
         console.error('Failed to load initial DB state:', err);
       } finally {
@@ -117,16 +122,9 @@ export default function App() {
       }
     }
     loadDbState();
-  }, []);
+  }, [isLoggedIn]);
 
-  // Persist AppState to localStorage on change (after load finishes)
-  useEffect(() => {
-    if (!isLoading) {
-      saveState(state);
-    }
-  }, [state, isLoading]);
-
-  // Handle Simulated/Real Supabase Authentication
+  // Handle Real Supabase Authentication
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!loginEmail || !loginPassword) {
@@ -165,18 +163,7 @@ export default function App() {
         setIsLoading(false);
       }
     } else {
-      // Local sandbox simulated fallback login
-      localStorage.setItem('conextsol_auth_logged_in', 'true');
-      setIsLoggedIn(true);
-      setAuthError('');
-
-      // Dynamically adjust permissions based on email structure
-      const adminMode = loginEmail.endsWith('@conextsol.com') || loginEmail === 'reeqieric41@gmail.com';
-      setState(prev => ({
-        ...prev,
-        isAdmin: adminMode,
-        userEmail: loginEmail
-      }));
+      setAuthError('Database connection error: VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY environment variables are not configured.');
     }
   };
 
@@ -522,36 +509,7 @@ export default function App() {
     }
   };
 
-  // DevCenter actions
-  const handleSeedDemoData = () => {
-    setState(prev => ({
-      ...prev,
-      clients: DEMO_CLIENTS,
-      projects: DEMO_PROJECTS,
-      retainers: DEMO_RETAINERS,
-      documents: DEMO_DOCUMENTS,
-      alertsLog: DEMO_ALERTS_LOG
-    }));
-    supabaseService.seedDemoData(
-      DEMO_CLIENTS,
-      DEMO_PROJECTS,
-      DEMO_RETAINERS,
-      DEMO_DOCUMENTS,
-      DEMO_ALERTS_LOG
-    );
-  };
 
-  const handleClearAllData = () => {
-    setState(prev => ({
-      ...prev,
-      clients: INITIAL_CLIENTS,
-      projects: INITIAL_PROJECTS,
-      retainers: INITIAL_RETAINERS,
-      documents: INITIAL_DOCUMENTS,
-      alertsLog: INITIAL_ALERTS_LOG
-    }));
-    supabaseService.clearAllLocalData();
-  };
 
   // Render Login Frame if not authenticated
   if (!isLoggedIn) {
