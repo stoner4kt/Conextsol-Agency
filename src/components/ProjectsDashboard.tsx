@@ -238,7 +238,7 @@ export default function ProjectsDashboard({
           >
             <option value="all">All Clients</option>
             {state.clients.map(c => (
-              <option key={c.id} value={c.id}>{c.primary_contact_name} — {c.company_name}</option>
+              <option key={c.id} value={c.id}>{c.primary_contact_name}</option>
             ))}
           </select>
 
