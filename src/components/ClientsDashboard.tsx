@@ -109,7 +109,7 @@ export default function ClientsDashboard({
     }
 
     const created: Client = {
-      id: 'c-' + Math.random().toString(36).substring(2, 11),
+      id: crypto.randomUUID(),
       company_name: newForm.company_name,
       primary_contact_name: newForm.primary_contact_name,
       email: newForm.email,
